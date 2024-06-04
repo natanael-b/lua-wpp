@@ -1,4 +1,4 @@
-<p align="right"><a href="README.pt_BR.md">Português</a></p>
+v<p align="right"><a href="README.pt_BR.md">Português</a></p>
 
 <h1 align="center">
    <img src="imgs/logo.svg" width=256 alt="GIMP">
@@ -73,7 +73,7 @@ Pages = {
    'index'
 }
 
-require "lua-wpp-framework"
+require "lua4webapps-framework"
 ```
 
 Now create a folder called "lua" and in it an `index.lua` file with the content:
@@ -128,23 +128,7 @@ hello {
 
 ### Interaction with 2D tables
 
-By now you might be thinking that you need to use the classic HTML structure to make tables:
-
-```moon
-table {
-   tr {
-     td 'A1', td 'B1', td 'C1',
-   },
-   tr {
-     td 'A2', td 'B2', td 'C2',
-   },
-   tr {
-     td 'A3', td 'B3', td 'C3',
-   },
-}
-```
-
-But no, with `Lua WPP` you can simply:
+Automatic translate 2D tables into HTML tables:
 
 ```moon
 table {
@@ -154,21 +138,25 @@ table {
 }
 ```
 
-This brings the possibility to create tables directly from CSVs for example
 
 ### Reusable components
 
-One of the most powerful features of `Lua WPP` allows you to create components and reuse, it's the end of giant tag chains generating confusing code:
+One of the most powerful features of `Lua WPP` allows you to create components:e:
 
 ```moon
 card = div:extends {
+   -- We can add properties
    style = 'box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2); max-width:320px;',
+   -- And also childrens
    childrens = {
+     -- In first field is the elements before in use childrens
      first = {
         {
+           -- Define the tag and optional properties and childrens
            element = img {
               style="width:100%"
            },
+           -- We can bind the properties 
            bindings = {
               ['src'] = 'picture',
            }
@@ -203,47 +191,7 @@ card = div:extends {
 }
 ```
 
-Although at first it looks like a lot of code for little result, the code to use the component is much more readable:
-
-Before:
-
-```moon
-html {
-   head {
-     title 'Demo'
-   },
-   body {
-     div {
-       style = 'box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2); max-width:
-320px;',
-       img {
-         style = 'width:100%;',
-         src = "https://www.w3schools.com/howto/img_avatar.png"
-       },
-       div {
-         style = "padding: 2px 16px;",
-         h4 'John Doe',
-         p 'Architect & Engineer',
-       }
-     },
-
-     div {
-       style = 'box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2); max-width:320px;',
-       img {
-         style = 'width:100%;',
-         src = "https://www.w3schools.com/howto/img_avatar2.png"
-       },
-       div {
-         style = "padding: 2px 16px;",
-         h4 'Jane Doe',
-         p 'Interior Designer',
-       }
-     },
-   }
-}
-```
-
-After:
+Using:
 
 ```lua
 html {
