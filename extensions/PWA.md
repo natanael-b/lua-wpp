@@ -68,6 +68,6 @@ Will render:
   <link href="64px_icon.png" sizes="64x64" rel="apple-touch-icon" type="image/png"/>
   <meta content="lua-wpp" name="generator"/>
   <meta content="width=device-width,initial-scale=1.0" name="viewport"/>
-  <meta name="mobile-web-app-capable" content="yes"/><meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
 </head
 ```
