@@ -48,12 +48,6 @@ head = head:extends {
          },
          {
             element = meta {
-              name="apple-mobile-web-app-capable",
-              content="yes"
-            }
-         },
-         {
-            element = meta {
               name="theme-color",
             },
             bindings = {
