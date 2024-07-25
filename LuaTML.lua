@@ -1,147 +1,150 @@
-local UniqueID = {}
-UniqueID = setmetatable(UniqueID,{
-  __index = UniqueID,
-  __call =
-    function (self)
-      local result = ""
-      for i=1,9 do
-        if math.random(1,2) == 1 then
-          result = result..string.char(math.random(97, 97 + 25))
-        else
-          result = result..string.char(math.random(65, 65 + 25))
-        end
-      end
-      self.value = result
-      return self
-    end
-  ;
-  __tostring =
-    function (self)
-      return self.value
-    end
-  ;
-})
-UniqueID()
 
-local self_closable_tags = {
-  area    = true,
-  base    = true,
-  br      = true,
-  col     = true,
-  command = true,
-  embed   = true,
-  hr      = true,
-  img     = true,
-  input   = true,
-  keygen  = true,
-  link    = true,
-  meta    = true,
-  param   = true,
-  source  = true,
-  track   = true,
-  wbr     = true,
+-- Prevent Prompt changing on REPL
+_PROMPT = _ENV["_PROMT"] or "> "
+
+local selfClosableTags = {
+    area    = true,
+    base    = true,
+    br      = true,
+    col     = true,
+    command = true,
+    embed   = true,
+    hr      = true,
+    img     = true,
+    input   = true,
+    keygen  = true,
+    link    = true,
+    meta    = true,
+    param   = true,
+    source  = true,
+    track   = true,
+    wbr     = true,
 }
 
-local _ENV_metatable = getmetatable(_ENV) or {}
-_PROMPT = _ENV["_PROMT"] or "> "  -- Prevent from changing prompt on interactive mode
-__JAVASCRIPT__ = ""
+-- To simplify logic, childdrens of extended elements will share this metatable
+-- this will allow direct detect and allows new plain div syntax
+local sharedMetatable = {}
 
-function _ENV_metatable.__index (self,name)
-  local content = rawget(self,name)
+-- In HTML we need encode certains characters
+local function toHTMLEncode(v)
+  return tostring(v):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"):gsub('"', "&quot;"):gsub("'", "&#039;")
+end
 
-  if content ~= nil then
-    return content
+-- Generic function to serialize tag childrens
+local function serializeChildrens(self)
+    local result = ""
+    for i, element in ipairs(self) do
+      result = result..tostring(element)
+    end
+    return result
+end
+
+local function serializeProperties(properties)
+    local HTML = ""
+  -- Let's ensure that property order is same across builds
+  -- this avoids commit pollution
+
+  local propertiesList = {}
+  for property in pairs(properties) do
+    propertiesList[#propertiesList+1] = property
   end
+  table.sort(propertiesList)
+  
+  for i, property in ipairs(propertiesList) do
+    local value = properties[property]
+    HTML = HTML..property..'="'..toHTMLEncode(tostring(value))..'" '
+  end
+  return (HTML == "" and "" or " ")..HTML
+end
 
-  return setmetatable({
-    tag=name,
-    extends =
-      function (self,descriptor)
-        local element = {tag = rawget(self,"tag"),hard_properties={},extends=rawget(self,"extends")}
-        local base_hard_properties = rawget(self,"hard_properties") or {}
-        local base_childrens = rawget(base_hard_properties,"childrens") or {}
-        local extended_childrens = {first={bindings={}},last={bindings={}}}
+local function processChildren(element,properties)
+    if getmetatable(element) == sharedMetatable then
+      -- We get a children of extended elements
+      local bindings = element.bindings
+      local elementWrapped = element.element
 
-        descriptor.childrens = descriptor.childrens or {}
-
-        -- Elements
-
-        for i, element in ipairs(base_childrens.first or {}) do
-          extended_childrens.first[#extended_childrens.first+1] = element
-        end
-
-        for i, element in ipairs(base_childrens.last or {}) do
-          extended_childrens.last[#extended_childrens.last+1] = element
-        end
-
-        for i,element in ipairs((descriptor.childrens or {}).first or {}) do
-          extended_childrens.first[#extended_childrens.first+1] = element
-        end
-
-        for i,element in ipairs((descriptor.childrens or {}).last or {}) do
-          extended_childrens.last[#extended_childrens.last+1] = element
-        end
-
-        -- Bindings
-
-        for k,v in pairs((base_childrens.first or {}).bindings or {}) do
-          extended_childrens.first.bindings[k] = v
-        end
-
-        for k,v in pairs((base_childrens.last or {}).bindings or {}) do
-          extended_childrens.last.bindings[k] = v
-        end
-
-        for k,v in pairs((descriptor.childrens.first or {}).bindings or {}) do
-          extended_childrens.first.bindings[k] = v
-        end
-
-        for k,v in pairs((descriptor.childrens.last or {}).bindings or {}) do
-          extended_childrens.last.bindings[k] = v
-        end
-
-        descriptor.childrens = extended_childrens
-
-        for property, value in pairs(descriptor) do
-          if type(property) ~= "number" and type(value) == "string" then
-            if base_hard_properties[property] then
-              value = base_hard_properties[property].." "..tostring(value):gsub("\"","&quot;" )
-            end
-            element.hard_properties[property] = tostring(value):gsub("\"","&quot;")
-          else
-            element.hard_properties[property] = value
+      for childrenProperty, parentProperty in pairs(bindings) do
+        if type(childrenProperty) ~= "number"  then
+          rawget(elementWrapped,"__lua4webapps_properties")[childrenProperty] = tostring(properties[parentProperty])
+        else
+          local childrens = rawget(elementWrapped,"__lua4webapps_childrens")
+          for i = 1, childrenProperty, 1 do
+            childrens[i] =childrens[i] or ""
           end
+          childrens[childrenProperty] = tostring(properties[parentProperty])
         end
-
-        for key, value in pairs(self) do
-          element[key] = value
-        end
-
-        return setmetatable(element,getmetatable(_ENV[{}]))
       end
-    ;
-  }, {
+      return elementWrapped
+    end
+    if type(element) == "table" and getmetatable(element) == nil then
+      -- we got a plain div , let's create a custom element
+      local newDiv = _ENV[{"div"}]
+      for key, value in pairs(element) do
+        newDiv[key] = value
+      end
+      return newDiv
+    end
+    return element
+end
+
+local function destructure(self)
+    local childrens  = {}
+    local properties = {}
+
+    -- To allow extendable tags we need clone properties and childrens
+    for property, value in pairs(rawget(self,"__lua4webapps_properties")) do
+        properties[property] = value
+    end
+    for property, value in pairs(rawget(self,"__lua4webapps_hardcodeProperties")) do
+        properties[property] = properties[property] == nil and value or properties[property].." "..value
+    end
+
+    -- Retrocompatibility
+    for _, children in ipairs((rawget(self,"__lua4webapps_hardcodeChildrens") or {}).first or {}) do
+        childrens[#childrens+1] = processChildren(children,properties)
+    end
+    for _, children in ipairs((rawget(self,"__lua4webapps_hardcodeChildrens") or {})) do
+        childrens[#childrens+1] = processChildren(children,properties)
+    end
+    for _, children in ipairs((rawget(self,"__lua4webapps_childrens") or {}).first or {}) do
+        childrens[#childrens+1] = processChildren(children,properties)
+    end
+    for _, children in ipairs(rawget(self,"__lua4webapps_childrens") or {}) do
+        childrens[#childrens+1] = processChildren(children,properties)
+    end
+    for _, children in ipairs((rawget(self,"__lua4webapps_childrens") or {}).last or {}) do
+        childrens[#childrens+1] = processChildren(children,properties)
+    end
+    for _, children in ipairs((rawget(self,"__lua4webapps_hardcodeChildrens") or {}).last or {}) do
+        childrens[#childrens+1] = processChildren(children,properties)
+    end
+    return childrens,properties
+end
+
+-- lets avoid redeclare functions
+local elementCommonMetatableEvents = {
+    __newindex =
+      function (self,k,v)
+        if type(k == "number") then
+            local childrens = rawget(self,"__lua4webapps_childrens")
+            childrens[#childrens+1] = v
+            return
+        end
+        local properties = rawget(self,"__lua4webapps_properties")
+        properties[k] = v
+      end
+    ,
     __mul =
-      function (self,number)
+      function (self,n)
         local block = {}
 
-        for i = 1, number do
-          block[#block+1] = self
+        for i = 1, n do
+          block[i] = self
         end
 
-        return setmetatable(block, {
-          __tostring =
-            function (self)
-              local result = ""
-              for i, element in ipairs(self) do
-                result = result..tostring(element)
-              end
-              return result
-            end
-        })
+        return setmetatable(block, {__tostring = serializeChildrens})
       end
     ;
-
     __pow =
       function (self,items)
         local block = {}
@@ -158,241 +161,204 @@ function _ENV_metatable.__index (self,name)
           block[#block+1] = element
         end
 
-        return setmetatable(block, {
-          __tostring =
-            function (self)
-              local result = ""
-              for i, element in ipairs(self) do
-                result = result..tostring(element)
-              end
-              return result
-            end
-        })
-    end,
-
+        return setmetatable(block, {__tostring = setmetatable(block, {__tostring = serializeChildrens})})
+      end
+    ;
     __tostring =
       function (self)
-        local html = ""
+        local tagName    = rawget(self,"__lua4webapps_tagName")
+        local childrens,properties = destructure(self)
 
-        self.tag = self.tag:lower()
+        local HTML = "<"..tagName..serializeProperties(properties)..((#childrens == 0 and selfClosableTags[tagName]) and "" or ">\n")
+        HTML = HTML..serializeChildrens(childrens or {})
 
-        if type(self.tag) ~= "table" then
-          html = "<"..self.tag
-        end
-        
-        self.properties = self.properties or {}
-
-        if self.tag == "html" and type(_ENV["Language"]) == "string" then
-          self.properties.lang = _ENV["Language"]
-        end
-
-        if self.tag == "head"  then
-          if _ENV["DISABLE_UTF8"] ~= true then
-            table.insert(self.properties,1,meta { charset="utf8" })
-          end
-          
-          if _ENV["DISABLE_GENERATOR"] ~= true then
-            self.properties[#self.properties+1] = meta {
-                                                         name="generator",
-                                                         content="lua-wpp"
-                                                       }
-          end
-
-          if _ENV["DISABLE_VIEWPORT"] ~= true then
-            self.properties[#self.properties+1] = meta {
-                                                         name="viewport",
-                                                         content="width=device-width,initial-scale=1.0"
-                                                       }
-          end
-        end
-
-        self.hard_properties = self.hard_properties or {}
-        self.childrens       = self.hard_properties.childrens or {}
-        self.childrens.first = self.childrens.first or {}
-        self.childrens.last  = self.childrens.last  or {}
-
-        self.hard_properties.childrens = nil
-        local hard_properties = {}
-
-        for property, value in pairs(self.hard_properties) do
-          hard_properties[property] = value
-          if self.properties[property] == nil then
-            self.properties[property] = value
-            self.hard_properties[property] = nil
-          end
-        end
-
-        for property, value in pairs(self.properties or {}) do
-          if type(property) ~= "number" then
-            if type(value) and getmetatable(value) == nil and property:sub(1,2) == "on" then
-              if type(__JAVASCRIPT__) == "string" then
-                local old_uuid = tostring(UniqueID)
-                self.properties.id = tostring(self.properties.id or UniqueID())
-                rawset(UniqueID,"value",old_uuid)
-                break
-              end
-            end
-          end
-        end
-
-        local innerHTML = ""
-
-        for j, content in ipairs {self.childrens.first,self.properties,self.childrens.last} do
-          for i, children in ipairs(content or {}) do
-            if content == self.properties then
-              if type(children) == "table" and getmetatable(children) == nil and self.tag == "table" then
-                local result = ""
-                for _,element  in ipairs(children) do
-                  if type(element) == "table" then
-                    if element.tag == "td" or element.tag == "th" then
-                      result = result..tostring(element)
-                    else
-                      result = result..tostring(td {tostring(element)..""})
-                    end
-                  else
-                    result = result..tostring(td {tostring(element)..""})
-                  end
-                end
-                innerHTML = innerHTML..tostring(tr {result..""})
-              elseif type(children) == "table" and getmetatable(children) == nil and self.tag == "select" then
-                  innerHTML = innerHTML..tostring(option {value=tostring(children[1]),tostring(children[2])..""})
-              elseif type(children) == "string" and self.tag == "select" then
-                  innerHTML = innerHTML..tostring(option{value=tostring(i).."",children})
-              else
-                innerHTML = innerHTML..tostring(children)
-              end
-              goto skip
-            end
-
-            if getmetatable(children) or type(children) == "string" then
-              innerHTML = innerHTML..tostring(children)
-            else
-              local bindings        = children.bindings
-              local element         = children.element
-              local tag             = element.tag
-              local properties      = element.properties
-              local hard_properties = element.hard_properties
-  
-              local obj = {
-                tag = tag,
-                properties = {},
-                hard_properties = hard_properties
-              }
-  
-              for property, value in pairs(properties or {}) do
-                obj.properties[property] = value
-              end
-  
-              for children_property, parent_property in pairs(bindings or {}) do
-                local value = self.properties[parent_property]
-                if value ~= nil then
-                  self.properties[parent_property] = nil
-                  obj.properties[children_property] = tostring(value)
-                end
-              end
-              innerHTML = innerHTML..tostring(setmetatable(obj,getmetatable(element)))
-            end
-            ::skip::
-          end
-        end
-
-        local self_properties = {}
-        for property, _ in pairs(self.properties or {}) do
-          if type(property) ~= "number" then
-            self_properties[#self_properties+1] = property
-          end
-        end
-        table.sort(self_properties)
-
-        for _,property in ipairs(self_properties) do
-          local value = (self.properties or {})[property]
-          if getmetatable(value) == nil and property:sub(1,2) == "on" then
-            if type(__JAVASCRIPT__) == "string" then
-              local function_name = "when_"..property:sub(3,-1).."_on_"..self.properties.id.."()"
-              __JAVASCRIPT__ = __JAVASCRIPT__.."\n\n\nfunction "..function_name.." {\n"
-              __JAVASCRIPT__ = __JAVASCRIPT__.."  var self = event.target;\n\n  "
-              __JAVASCRIPT__ = __JAVASCRIPT__..table.concat(value,";\n  ").."\n}"
-              value = function_name..";"
-            else
-                value = table.concat(value,";"):gsub("\"","&quot;")
-            end
-          end
-          html = html.." "..property.."=\""..(self.hard_properties[property] and self.hard_properties[property].." " or "")..tostring(value):gsub("\"","&quot;").."\""
-        end
-
-        for property, value in pairs(hard_properties) do
-          self.hard_properties[property] = value
-        end
-      
-        self.hard_properties.childrens = self.childrens
-
-        if (#(self.properties or {}) == 0) and self_closable_tags[self.tag] and #self.childrens.first+#self.childrens.first == 0 then
-          return html.."/>"
-        end
-
-        html = html..">"..innerHTML
-
-        if self.tag == "body" and __JAVASCRIPT__ ~= "" then
-          html = html..tostring(script{type="text/javascript","\n"..__JAVASCRIPT__.."\n\n"})
-          __JAVASCRIPT__ = ""
-        end
-
-        -- No body TAG, but has Javascript events, we need to fix this weird HTML
-        if __JAVASCRIPT__ ~= "" and self.tag == "html" then
-          html = html.."<body>"..tostring(script{type="text/javascript","\n"..__JAVASCRIPT__.."\n\n"}).."</body>"
-          __JAVASCRIPT__ = ""
-        end
-
-        if type(self.tag) == "table" then
-          return html
-        end
-        return html.."</"..self.tag..">"
+        return HTML..((#childrens == 0 and selfClosableTags[tagName]) and "/>\n" or "</"..tagName..">\n")
       end
     ;
-
     __call =
-      function (self,properties)
-        self.properties = type(properties) == "table" and properties or {tostring(properties)}
-
-        if self.tag:lower() == "html" then
-          __HTML__ = tostring("<!DOCTYPE html>"..tostring(self))
-          return __HTML__
+      function (self,t)
+        t = type(t) == "table" and t or {tostring(t)}
+        for key, value in pairs(t) do
+            if type(key) ~= "number" then
+                rawset(rawget(self,"__lua4webapps_properties"),key,value)
+            else
+                rawset(rawget(self,"__lua4webapps_childrens"),key,value)
+            end
         end
-
-        local obj = {
-          tag = self.tag,
-          properties = self.properties,
-          extends = self.extends,
-          hard_properties = {}
-        }
-
-        for property, value in pairs(self.hard_properties or {}) do
-          obj.hard_properties[property] = value
-        end
-
-        return setmetatable(obj,getmetatable(self))
+        return self
       end
     ;
-  })
+}
+
+-- Some elements must have a special __tostring, __newindex and __call for convenience
+local elementSpecificMetatableEvents = {
+    html = {
+      __tostring =
+        function (self)
+          return "<!DOCTYPE html>\n"..elementCommonMetatableEvents.__tostring(self)
+        end
+      ;
+    },
+    table = {
+
+    },
+    select = {
+      __newindex =
+        function (self,k,v)
+          if type(k) =="number" then
+            if type(v) == "table" and getmetatable(v) == nil then
+              v = option {value = tostring(v[2]),tostring(v[1])}
+            elseif (type(v) == "table" or type(v) == "object") and getmetatable(v)  then
+              v = v
+            else
+              v = option {value = tostring(v),tostring(v)}
+            end
+            elementCommonMetatableEvents.__newindex(self,k,v)
+          end
+        end
+      ,
+      __call =
+        function (self,t)
+          for i, element in ipairs(t) do
+            if type(element) == "table" and getmetatable(element) == nil then
+              t[i] = option {value = tostring(element[2]),tostring(element[1])}
+            elseif (type(element) == "table" or type(element) == "object") and getmetatable(element)  then
+              t[i] = element
+            else
+              t[i] = option {value = tostring(element),tostring(element)}
+            end
+          end
+          return (elementCommonMetatableEvents.__call(self,t))
+        end
+      ,
+    },
+}
+
+local function processExtendedTagChildren(children)
+  if #children == 0 and (type(children) == "table" and children.element or false) and getmetatable(children) == nil then
+    setmetatable(children,sharedMetatable)
+  end
+  return children
 end
 
-setmetatable(_ENV,_ENV_metatable)
+local function extends(self,descriptor)
+  local element   = _ENV[{rawget(self,"__lua4webapps_tagName")}] -- create a dummy element
+  local childrens = descriptor.childrens or {}
 
-table.tag='table'
-table.extends = rawget(_ENV[{}],"extends")
-setmetatable(table,getmetatable(_ENV[{}]))
+  local hardcodeProperties     = (rawget(self,"__lua4webapps_hardcodeProperties") or {}).first or {}
+  local hardcodeChildrensFirst = (rawget(self,"__lua4webapps_hardcodeChildrens") or {}).first  or {}
+  local hardcodeChildrens      = (rawget(self,"__lua4webapps_hardcodeChildrens") or {})
+  local hardcodeChildrensLast  = (rawget(self,"__lua4webapps_hardcodeChildrens") or {}).last   or {}
 
-local lua_select = select
+  local newHardcodeProperties     = {}
+  local newHardcodeChildrensFirst = {}
+  local newHardcodeChildrens      = {}
+  local newHardcodeChildrensLast  = {}
+
+  descriptor.childrens = nil
+
+  -- Merge hardcoded properties
+  for key, value in pairs(hardcodeProperties) do
+    newHardcodeProperties[key] = value
+  end
+  for key, value in pairs(descriptor) do
+    newHardcodeProperties[key] = newHardcodeProperties[key] == nil and value or newHardcodeProperties[key].." "..value
+  end
+
+  -- Merge hardcoded head childrens
+  for _,children in ipairs(hardcodeChildrensFirst) do
+    newHardcodeChildrensFirst[#newHardcodeChildrensFirst+1] = processExtendedTagChildren(children)
+  end
+  for _,children in ipairs(childrens.first or {}) do
+    newHardcodeChildrensFirst[#newHardcodeChildrensFirst+1] = processExtendedTagChildren(children)
+  end
+
+  --Merge hardcoded body childrens (syntatic sugar for first)
+  for _,children in ipairs(hardcodeChildrens) do
+    newHardcodeChildrens[#newHardcodeChildrens+1] = processExtendedTagChildren(children)
+  end
+  for _,children in ipairs(childrens) do
+    newHardcodeChildrens[#newHardcodeChildrens+1] = processExtendedTagChildren(children)
+  end
+
+  -- Merge hardcoded footer childrens
+  for _,children in ipairs(childrens.last or {}) do
+    newHardcodeChildrensLast[#newHardcodeChildrensLast+1] = processExtendedTagChildren(children)
+  end
+  for _,children in ipairs(hardcodeChildrensLast) do
+    newHardcodeChildrensLast[#newHardcodeChildrensLast+1] = processExtendedTagChildren(children)
+  end
+
+  newHardcodeChildrens.first = newHardcodeChildrensFirst or {}
+  newHardcodeChildrens.last  = newHardcodeChildrensLast  or {}
+
+  rawset(element,"__lua4webapps_hardcodeProperties",newHardcodeProperties)
+  rawset(element,"__lua4webapps_hardcodeChildrens",newHardcodeChildrens)
+
+  return element
+end
+
+local function createElement(tag,__index)
+    tag = tostring(tag):lower()
+
+    return setmetatable({
+        __lua4webapps_tagName    = tag,
+        __lua4webapps_properties = {},
+        __lua4webapps_hardcodeProperties = {},
+        __lua4webapps_hardcodeChildrens = {},
+        __lua4webapps_childrens = {},
+        extends = extends,
+    },{
+        __index    = __index,
+        __newindex = (elementSpecificMetatableEvents[tag] or {}).__newindex or elementCommonMetatableEvents.__newindex;
+        __name     = "table", -- Iasy support
+        __mul      = elementCommonMetatableEvents.__mul,
+        __pow      = elementCommonMetatableEvents.__pow,
+        __tostring = (elementSpecificMetatableEvents[tag] or {}).__tostring or elementCommonMetatableEvents.__tostring,
+        __call     = (elementSpecificMetatableEvents[tag] or {}).__call     or elementCommonMetatableEvents.__call;
+    })
+end
+
+local envMetatable = {
+    __index =
+      function (self,k)
+        -- if something doesn't exists, return an HTML element
+        return rawget(self,k) or createElement(type(k)=="table" and table.concat(k) or tostring(k))
+      end
+    ;
+}
+
+-- Let's do the trick
+setmetatable(_ENV,envMetatable)
+
+-- Lua already uses table name
+table = createElement("table",table)
+
+-- Select in lua is already declared a function,
+-- since we want to keep Lua untouched, is need
+-- to encapsulate then
 
 select = _ENV[{}]
-select.tag = "select"
+rawset(select,"__lua4webapps_tagName","select")
 
-local select_meta = getmetatable(select)
-local select_call = select_meta.__call
+local luaSelect = select
+local selectMetatable = getmetatable(_ENV[{}])
 
-function select_meta.__call(self,...)
+function selectMetatable.__call(self,...)
   if type(({...})[1]) == "number" then
-    return lua_select(...)
+    return luaSelect(...)
   end
-  return select_call(self,...)
+  return elementSpecificMetatableEvents.select.__call(self,...)
 end
+
+setmetatable(select,selectMetatable)
+
+-- For convenience let's reduce head tag boilerplate
+
+head = head:extends {
+  childrens = {
+    meta {charset="UTF-8"},
+    meta {content="width=device-width,initial-scale=1.0", name="viewport"},
+    style "body {font-family: sans-serif;}",
+  }
+}
