@@ -199,7 +199,45 @@ local elementSpecificMetatableEvents = {
       ;
     },
     table = {
-
+      __newindex =
+        function (self,k,v)
+          if type(v) == "table" and getmetatable(v) == nil then
+            v = tr(v)
+          end
+          elementCommonMetatableEvents.__newindex(self,k,v)
+        end
+      ;
+      __call =
+        function (self,t)
+          for i, element in ipairs(t) do
+            if type(element) == "table" and getmetatable(element) == nil then
+              t[i] = tr(element)
+            end
+          end
+          return (elementCommonMetatableEvents.__call(self,t))
+        end
+      ,
+    },
+    tr = {
+      __newindex =
+        function (self,k,v)
+          if type(v) == "table" and getmetatable(v) == nil then
+            v = td(v)
+          end
+          elementCommonMetatableEvents.__newindex(self,k,v)
+        end
+      ;
+      __call =
+        function (self,t)
+          print("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",#t)
+          for i, element in ipairs(t) do
+            if type(element) ~= "table" then
+              t[i] = td(element)
+            end
+          end
+          return (elementCommonMetatableEvents.__call(self,t))
+        end
+      ,
     },
     select = {
       __newindex =
