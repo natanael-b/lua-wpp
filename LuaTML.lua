@@ -191,6 +191,12 @@ local elementSpecificMetatableEvents = {
           return "<!DOCTYPE html>\n"..elementCommonMetatableEvents.__tostring(self)
         end
       ;
+      __call =
+        function (self,t)
+          __HTML__ = tostring("<!DOCTYPE html>"..tostring(self))
+          return elementCommonMetatableEvents.__call(self,t)
+        end
+      ;
     },
     table = {
 
