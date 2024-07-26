@@ -92,32 +92,25 @@ local function destructure(self)
     local properties = {}
 
     -- To allow extendable tags we need clone properties and childrens
-    for property, value in pairs(rawget(self,"__lua4webapps_properties")) do
-        properties[property] = value
-    end
-    for property, value in pairs(rawget(self,"__lua4webapps_hardcodeProperties")) do
+    for _, scope in ipairs {rawget(self,"__lua4webapps_hardcodeProperties"),rawget(self,"__lua4webapps_properties")} do
+      for property, value in pairs(scope) do
         properties[property] = properties[property] == nil and value or properties[property].." "..value
+      end
     end
 
-    -- Retrocompatibility
-    for _, children in ipairs((rawget(self,"__lua4webapps_hardcodeChildrens") or {}).first or {}) do
+    for _, scope in ipairs {
+                              (rawget(self,"__lua4webapps_hardcodeChildrens") or {}).first or {},  -- Retrocompatibility
+                              (rawget(self,"__lua4webapps_hardcodeChildrens") or {}),
+                              (rawget(self,"__lua4webapps_childrens") or {}).first or {},
+                              (rawget(self,"__lua4webapps_childrens") or {}),
+                              (rawget(self,"__lua4webapps_childrens") or {}).last or {},
+                              (rawget(self,"__lua4webapps_hardcodeChildrens") or {}).last or {}
+                           } do
+      for _, children in ipairs(scope) do
         childrens[#childrens+1] = processChildren(children,properties)
+      end
     end
-    for _, children in ipairs((rawget(self,"__lua4webapps_hardcodeChildrens") or {})) do
-        childrens[#childrens+1] = processChildren(children,properties)
-    end
-    for _, children in ipairs((rawget(self,"__lua4webapps_childrens") or {}).first or {}) do
-        childrens[#childrens+1] = processChildren(children,properties)
-    end
-    for _, children in ipairs(rawget(self,"__lua4webapps_childrens") or {}) do
-        childrens[#childrens+1] = processChildren(children,properties)
-    end
-    for _, children in ipairs((rawget(self,"__lua4webapps_childrens") or {}).last or {}) do
-        childrens[#childrens+1] = processChildren(children,properties)
-    end
-    for _, children in ipairs((rawget(self,"__lua4webapps_hardcodeChildrens") or {}).last or {}) do
-        childrens[#childrens+1] = processChildren(children,properties)
-    end
+
     return childrens,properties
 end
 
@@ -258,35 +251,31 @@ local function extends(self,descriptor)
   descriptor.childrens = nil
 
   -- Merge hardcoded properties
-  for key, value in pairs(hardcodeProperties) do
-    newHardcodeProperties[key] = value
-  end
-  for key, value in pairs(descriptor) do
-    newHardcodeProperties[key] = newHardcodeProperties[key] == nil and value or newHardcodeProperties[key].." "..value
+  for _, scope in ipairs {hardcodeProperties,descriptor} do
+    for key, value in pairs(scope) do
+      newHardcodeProperties[key] = newHardcodeProperties[key] == nil and value or newHardcodeProperties[key].." "..value
+    end
   end
 
   -- Merge hardcoded head childrens
-  for _,children in ipairs(hardcodeChildrensFirst) do
-    newHardcodeChildrensFirst[#newHardcodeChildrensFirst+1] = processExtendedTagChildren(children)
-  end
-  for _,children in ipairs(childrens.first or {}) do
-    newHardcodeChildrensFirst[#newHardcodeChildrensFirst+1] = processExtendedTagChildren(children)
+  for _, scope in ipairs {hardcodeChildrensFirst or {},childrens.first or {}} do
+    for _,children in ipairs(scope) do
+      newHardcodeChildrensFirst[#newHardcodeChildrensFirst+1] = processExtendedTagChildren(children)
+    end
   end
 
   --Merge hardcoded body childrens (syntatic sugar for first)
-  for _,children in ipairs(hardcodeChildrens) do
-    newHardcodeChildrens[#newHardcodeChildrens+1] = processExtendedTagChildren(children)
-  end
-  for _,children in ipairs(childrens) do
-    newHardcodeChildrens[#newHardcodeChildrens+1] = processExtendedTagChildren(children)
+  for _, scope in ipairs {hardcodeChildrens or {},childrens or {}} do
+    for _,children in ipairs(scope) do
+      newHardcodeChildrens[#newHardcodeChildrens+1] = processExtendedTagChildren(children)
+    end
   end
 
   -- Merge hardcoded footer childrens
-  for _,children in ipairs(childrens.last or {}) do
-    newHardcodeChildrensLast[#newHardcodeChildrensLast+1] = processExtendedTagChildren(children)
-  end
-  for _,children in ipairs(hardcodeChildrensLast) do
-    newHardcodeChildrensLast[#newHardcodeChildrensLast+1] = processExtendedTagChildren(children)
+  for _, scope in ipairs {childrens.last or {},hardcodeChildrensLast or {}} do
+    for _,children in ipairs(scope) do
+      newHardcodeChildrensLast[#newHardcodeChildrensLast+1] = processExtendedTagChildren(children)
+    end
   end
 
   newHardcodeChildrens.first = newHardcodeChildrensFirst or {}
