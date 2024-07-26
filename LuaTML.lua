@@ -212,8 +212,8 @@ local elementSpecificMetatableEvents = {
             else
               v = option {value = tostring(v),tostring(v)}
             end
-            elementCommonMetatableEvents.__newindex(self,k,v)
           end
+          elementCommonMetatableEvents.__newindex(self,k,v)
         end
       ,
       __call =
