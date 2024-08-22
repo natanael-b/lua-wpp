@@ -1,114 +1,99 @@
-local Pages = Pages
-_ENV["Pages"] = nil
+local Pages = _ENV.Pages
+local Extensions = _ENV.Extensions
+local ExtensionPages = {}
+local RegisteredPlugins = {}
+local type = _ENV.type
 
-local Extensions = Extensions
-_ENV["Extensions"] = nil
-
-local Extension_Pages = {}
-
-local Registered_Extensions = {}
-
-local function clone_table(orig)
-    local orig_type = type(orig)
-    local copy
-    if orig_type == 'table' then
-        copy = {}
-        for orig_key, orig_value in next, orig, nil do
-            copy[clone_table(orig_key)] = clone_table(orig_value)
+local function cloneTable(orig)
+    local copy = {}
+    for key, value in pairs(orig) do
+        if type(value) == "table" or type(value) == "object" then
+            local meta = getmetatable(value)
+            copy[key] = cloneTable(value)
+            setmetatable(copy[key],meta and (cloneTable(meta)) or nil)
+        else
+            copy[key] = value
         end
-        setmetatable(copy, clone_table(getmetatable(orig)))
-    else
-        copy = orig
     end
     return copy
 end
 
--- Remove recursive references
+-- Cleanup _ENV before copy
 _G = nil
+_ENV["Pages"] = nil
+_ENV["Extensions"] = nil
 package.loaded._G = nil
 package.loaded.package = nil
-
--- Remove the _ENV metatable te ensure that onle LuaWPP metatable will be loaded
-
 setmetatable(_ENV,nil)
 
--- Clone the global variable state 
+local cleanENV = cloneTable(_ENV)
 
-local __ENV  = clone_table(_ENV)
-local __loadedpackage  = clone_table(package.loaded)
+local function setupNewEnv(page)
+    cleanENV.setmetatable(_ENV,nil)
+    for key, value in cleanENV.pairs(cleanENV) do
+        if type(value) == "table" or type(value) == "object" then
+            local meta = cleanENV.getmetatable(value)
+            _ENV[key] = cloneTable(value)
+            cleanENV.setmetatable(_ENV[key],meta and (cloneTable(meta)) or nil)
+        else
+            _ENV[key] = value
+        end
+    end
+
+    require "lua4webapps-framework.LuaTML"
+    for _, name in ipairs(Extensions or {}) do
+        require("lua4webapps-framework.extensions."..name)
+        if _ENV.RegisterPlugin and RegisteredPlugins[name] == nil then
+            _ENV.RegisterPlugin(ExtensionPages)
+            RegisteredPlugins[name] = true
+        end
+    end
+
+    require (page)
+end
 
 local function dirname(name)
     local directory = {Pages.output}
-    for folder in __ENV.string.gmatch(name,"[^/]+") do
+    for folder in cleanENV.string.gmatch(name,"[^/]+") do
         directory[#directory+1] = folder
     end
-    __ENV.table.remove(directory,#directory)
+    cleanENV.table.remove(directory,#directory)
 
-    return __ENV.table.concat(directory,"/")
+    return cleanENV.table.concat(directory,"/")
 end
 
 local function mkdir(path)
-    local path = dirname(path)
+    path = dirname(path)
     -- Windows
     if package.config:sub(1,1) == "\\" then
-        os.execute('md "'..path..'" >nul 2>nul')
+        cleanENV.os.execute('md "'..path..'" >nul 2>nul')
         return
     end
     -- Any other OS in use since 2003
-    os.execute("mkdir -p '"..path.."' >/dev/null 2>&1")
+    cleanENV.os.execute("mkdir -p '"..path.."' >/dev/null 2>&1")
 end
 
-
-for i, page in __ENV.ipairs(Pages) do
+for i, page in cleanENV.ipairs(Pages) do
+    setupNewEnv(Pages.sources.."."..page:gsub("/","."))
     print("Generating "..i.."/"..#Pages..": "..page..".html")
     mkdir(page)
-
-    __ENV.setmetatable(_ENV,nil)
-
-    for key, value in ipairs(clone_table(__ENV)) do
-        _ENV[key] = value
-    end
-
-    -- Unload LuaWPP libraries
-    for pkg in pairs(package.loaded) do
-        if __loadedpackage[pkg] == nil then
-            package.loaded[pkg] = nil
-        end
-    end
-
-    require "lua-wpp-framework.LuaTML"
-
-    for i, name in ipairs(Extensions or {}) do
-        require("lua-wpp-framework.extensions."..name)
-        if Registered_Extensions["lua-wpp-framework.extensions."..name] == nil then
-            Registered_Extensions["lua-wpp-framework.extensions."..name] = true
-        end
-
-        if RegisterPlugin then
-            RegisterPlugin(Extension_Pages)
-        end
-        
-        RegisterPlugin = nil
-    end
-    
-    require(Pages.sources.."."..page:gsub("/","."))
-
-    local html_file = __ENV.io.open(Pages.output.."/"..page..".html","w")
-
-    if html_file then
-        html_file:write(type(__HTML__) == "string" and __HTML__ or "")
-        html_file:close()
+    local htmlFile = cleanENV.io.open(Pages.output.."/"..page..".html","w")
+    if htmlFile then
+        htmlFile:write(type(__HTML__) == "string" and __HTML__ or "")
+        htmlFile:close()
+    else
+        cleanENV.error("Failed to write extension generated page '"..page.."'",0)
     end
 end
 
-for filename, content in pairs(Extension_Pages) do
-    mkdir(filename)
-
-    local html_file = __ENV.io.open(Pages.output.."/"..filename,"w")
-
-    if html_file then
-        html_file:write(tostring(content or ""))
-        html_file:close()
+for fileName, content in pairs(ExtensionPages) do
+    mkdir(fileName)
+    local file = cleanENV.io.open(Pages.output.."/"..fileName,"w")
+    if file then
+        file:write(tostring(content or ""))
+        file:close()
+    else
+        cleanENV.error("Failed to write extension generated page '"..fileName.."'",0)
     end
 end
 
