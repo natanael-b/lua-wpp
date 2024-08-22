@@ -193,8 +193,8 @@ local elementSpecificMetatableEvents = {
       ;
       __call =
         function (self,t)
-          __HTML__ = tostring("<!DOCTYPE html>"..tostring(self))
-          return elementCommonMetatableEvents.__call(self,t)
+          __HTML__ = "<!DOCTYPE html>"..tostring(elementCommonMetatableEvents.__call(self,t))
+          return __HTML__
         end
       ;
     },
@@ -229,7 +229,6 @@ local elementSpecificMetatableEvents = {
       ;
       __call =
         function (self,t)
-          print("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",#t)
           for i, element in ipairs(t) do
             if type(element) ~= "table" then
               t[i] = td(element)
