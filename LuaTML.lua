@@ -330,8 +330,32 @@ local function extends(self,descriptor)
   return element
 end
 
+-- We need to backup select and remove them
+local luaSelect = select
+select = nil
+
 local function createElement(tag,__index)
     tag = tostring(tag):lower()
+
+    if tag == "select" then
+        -- Select in lua is already declared a function,
+        -- since we want to keep Lua untouched, is need
+        -- to encapsulate then
+
+        local template = _ENV[{}]
+        rawset(template,"__lua4webapps_tagName","select")
+
+        local selectMetatable = getmetatable(_ENV[{}])
+
+        function selectMetatable.__call(self,...)
+            if type(({...})[1]) == "number" then
+                return (luaSelect)(...)
+            end
+            return elementSpecificMetatableEvents.select.__call(self,...)
+        end
+
+        return setmetatable(template,selectMetatable)
+    end
 
     return setmetatable({
         __lua4webapps_tagName    = tag,
@@ -365,25 +389,6 @@ setmetatable(_ENV,envMetatable)
 
 -- Lua already uses table name
 table = createElement("table",table)
-
--- Select in lua is already declared a function,
--- since we want to keep Lua untouched, is need
--- to encapsulate then
-
-select = _ENV[{}]
-rawset(select,"__lua4webapps_tagName","select")
-
-local luaSelect = select
-local selectMetatable = getmetatable(_ENV[{}])
-
-function selectMetatable.__call(self,...)
-  if type(({...})[1]) == "number" then
-    return luaSelect(...)
-  end
-  return elementSpecificMetatableEvents.select.__call(self,...)
-end
-
-setmetatable(select,selectMetatable)
 
 -- For convenience let's reduce head tag boilerplate
 
