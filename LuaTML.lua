@@ -214,7 +214,8 @@ local elementSpecificMetatableEvents = {
               t[i] = tr(element)
             end
           end
-          return (elementCommonMetatableEvents.__call(self,t))
+
+          return elementCommonMetatableEvents.__call(self,t)
         end
       ,
     },
@@ -331,33 +332,14 @@ local function extends(self,descriptor)
 end
 
 -- We need to backup select and remove them
-local luaSelect = select
-select = nil
 
-local function createElement(tag,__index)
+local luaSelect,luaTable,luaString,luaMath,luadebug = select,table,string,math,debug
+select,table,string,math,debug = nil,nil,nil,nil,nil
+
+local function createElement(tag)
     tag = tostring(tag):lower()
 
-    if tag == "select" then
-        -- Select in lua is already declared a function,
-        -- since we want to keep Lua untouched, is need
-        -- to encapsulate then
-
-        local template = _ENV[{}]
-        rawset(template,"__lua4webapps_tagName","select")
-
-        local selectMetatable = getmetatable(_ENV[{}])
-
-        function selectMetatable.__call(self,...)
-            if type(({...})[1]) == "number" then
-                return (luaSelect)(...)
-            end
-            return elementSpecificMetatableEvents.select.__call(self,...)
-        end
-
-        return setmetatable(template,selectMetatable)
-    end
-
-    return setmetatable({
+    local element = setmetatable({
         __lua4webapps_tagName    = tag,
         __lua4webapps_properties = {},
         __lua4webapps_hardcodeProperties = {},
@@ -365,7 +347,6 @@ local function createElement(tag,__index)
         __lua4webapps_childrens = {},
         extends = extends,
     },{
-        __index    = __index,
         __newindex = (elementSpecificMetatableEvents[tag] or {}).__newindex or elementCommonMetatableEvents.__newindex;
         __name     = "table", -- Iasy support
         __mul      = elementCommonMetatableEvents.__mul,
@@ -373,6 +354,42 @@ local function createElement(tag,__index)
         __tostring = (elementSpecificMetatableEvents[tag] or {}).__tostring or elementCommonMetatableEvents.__tostring,
         __call     = (elementSpecificMetatableEvents[tag] or {}).__call     or elementCommonMetatableEvents.__call;
     })
+
+    if tag == "select" then
+        -- Select in lua is already declared a function,
+        -- since we want to keep Lua untouched, is need
+        -- to encapsulate then
+        local elementMetatable = getmetatable(element)
+        function elementMetatable.__call(self,...)
+            if type(({...})[1]) == "number" then
+                return (luaSelect)(...)
+            end
+            return elementSpecificMetatableEvents.select.__call(self,...)
+        end
+        return element
+    end
+
+    if tag == "table" then
+      getmetatable(element).__index = luaTable
+      return element
+    end
+
+    if tag == "string" then
+      getmetatable(element).__index = luaString
+      return element
+    end
+
+    if tag == "math" then
+      getmetatable(element).__index = luaMath
+      return element
+    end
+
+    if tag == "debug" then
+      getmetatable(element).__index = luadebug
+      return element
+    end
+
+    return element
 end
 
 local envMetatable = {
@@ -386,9 +403,6 @@ local envMetatable = {
 
 -- Let's do the trick
 setmetatable(_ENV,envMetatable)
-
--- Lua already uses table name
-table = createElement("table",table)
 
 -- For convenience let's reduce head tag boilerplate
 
