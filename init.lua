@@ -4,6 +4,9 @@ local ExtensionPages = {}
 local RegisteredPlugins = {}
 local type = _ENV.type
 
+local f = io.open("lua4webapps-framework/init.lua")
+local lua4webapps = f and ({"lua4webapps-framework",f:close()})[1] or "lua4webapps"
+
 local function cloneTable(orig)
     local copy = {}
     for key, value in pairs(orig) do
@@ -40,9 +43,9 @@ local function setupNewEnv(page)
         end
     end
 
-    require "lua4webapps-framework.LuaTML"
+    require(lua4webapps..".LuaTML")
     for _, name in ipairs(Extensions or {}) do
-        require("lua4webapps-framework.extensions."..name)
+        require(lua4webapps..".extensions."..name)
         if _ENV.RegisterPlugin and RegisteredPlugins[name] == nil then
             _ENV.RegisterPlugin(ExtensionPages)
             RegisteredPlugins[name] = true
@@ -79,6 +82,7 @@ for i, page in cleanENV.ipairs(Pages) do
     mkdir(page)
     local htmlFile = cleanENV.io.open(Pages.output.."/"..page..".html","w")
     if htmlFile then
+        __HTML__ = __HTML__ or nil
         htmlFile:write(type(__HTML__) == "string" and __HTML__ or "")
         htmlFile:close()
     else
