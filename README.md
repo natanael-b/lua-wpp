@@ -1,136 +1,221 @@
-v<p align="right"><a href="README.pt_BR.md">Português</a></p>
+<p align="right"><a href="README.pt_BR.md">Português</a></p>
 
 <h1 align="center">
    <img src="imgs/logo.svg" width=256 alt="GIMP">
    <br />
-   Lua WPP | <a href="https://github.com/natanael-b/lua-wpp/archive/refs/heads/framework.zip">Download</a>
+   Lua WPP | <a href="https://github.com/natanael-b/lua4webapps/archive/refs/heads/framework.zip">Download</a>
 </h1>
 
-<p align="center"><i>"A cool way to create Web Apps and static pages"</i></p>
+<p align="center"><i>"A lightweight Lua-based HTML framework designed for creating static web applications"</i></p>
 
 <p align="center">
-   <a href="https://github.com/natanael-b/lua-wpp/fork">
+   <a href="https://github.com/natanael-b/lua4webapps/fork">
      <img height=26 alt="Create a fork on github" src="https://img.shields.io/badge/Fork--Me-H?style=social&logo=github">
    </a>
-   <img height=26 alt="GitHub Repo stars" src="https://img.shields.io/github/stars/natanael-b/lua-wpp?style=social">
+   <img height=26 alt="GitHub Repo stars" src="https://img.shields.io/github/stars/natanael-b/lua4webapps?style=social">
    <img height=26 alt="Dependency free" src="https://img.shields.io/badge/Zero-Dependency-blue">
   
 </p>
 
-A small but powerful Lua Framework to create Web Apps and static pages, using a much cleaner `Lua WPP` syntax will make you forget about HTML the classic Hello world goes from:
+This framework allows you to define HTML elements using Lua's native syntax, giving you the ability to build structured HTML documents programmatically. The framework supports extendable elements, self-closing tags, and allows for nested children with customizable properties.
 
-```HTML
-<!doctype html>
-<html>
-   <head>
-     <meta charset="utf8" />
-     <title>Demo</title>
-     <meta content="width=device-width,initial-scale=1.0" name="viewport" />
-   </head>
-   <body>
-     <h1>Hello world</h1>
-   </body>
-</html>
+# Features
+
+- **Declarative HTML Elements:** Easily create and manipulate HTML code using Lua's syntax.
+- **Self-closing Tags:** Automatically handles self-closing HTML tags like <br />, <img />, and more.
+- **Components:** Extend and customize existing HTML elements with additional properties and children.
+- **Dynamic Tag Handling:** Unrecognized tags are automatically interpreted as new HTML elements.
+- **HTML Encoding:** Automatically encodes characters for safe HTML rendering.
+- **Custom Syntax for Tables and Forms:** Supports custom handling of common elements like `<table>`, `<select>`, and `<form>`.
+
+# Getting Started
+
+### Installation
+
+To use this framework, simply include the Lua script in your project.
+
+<details>
+<summary>Using git</summary>
+
+```bash
+# Clone the repository
+git clone https://github.com/your-username/lua-web-framework.git
 ```
 
-For:
+</details>
 
-```moon
-html {
-   head {
-     title 'Demo'
-   };
-   body {
-     h1 'Hello world'
-   }
-}
-```
+<details>
+<summary>Using zip</summary>
 
-With zero cost of abstraction since the final page will be pure HTML
+- Click [download](https://github.com/natanael-b/lua-wpp/archive/refs/heads/framework.zip)
+- Extract the contents of the zip to some folder
 
-# How to install?
+</details>
 
-With a Lua interpreter installed and configured on your computer, add `lua-wpp`:
-
-1. Click <a href="https://github.com/natanael-b/lua-wpp/archive/refs/heads/framework.zip">download</a>
-2. Extract the contents of the `zip` to some folder
-
-Just like that, installation is as simple as downloading and extracting a `zip` file :)
-
-# How to use?
-
-In the folder you extracted:
+### How to use?
 
 1. Create a file for example `Project.lua` containing:
 
-```moon
-Language = "pt_BR" -- Defines the default language for pages
-
+```lua
 Pages = {
-   sources = "lua",
-   output="www",
+   sources = "lua", -- Location of Lua pages
+   output="www",    -- Where pages will be rendered
 
-   'index'
+   -- List of pages separated by ,
+   'index',
 }
 
-require "lua4webapps-framework"
+-- Keep bellow lines untouched
+local f = io.open("lua4webapps-framework/init.lua")
+local _ = f and {require "lua4webapps-framework",f:close()} or require "lua4webapps"
 ```
 
-Now create a folder called "lua" and in it an `index.lua` file with the content:
+2. Now create a folder called "lua" and in it an `index.lua` file with the content:
 
-```moon
+```lua
+-- Create a simple HTML document
 html {
-   head {
-     title 'Demo'
-   };
-   body {
-     h1 {
-       style = "padding:9pt; background-color: #3498db; color: #ecf0f1";
-       'Hello World'
-     } * 7
-   }
+    head {
+      title "Example"
+    },
+    body {
+        h1 "Hello, Lua Framework!",
+        p "This is a paragraph generated using Lua.",
+        img {src = "image.jpg", alt = "Sample Image"},
+        ul {
+            "First Item",
+            "Second Item",
+            "Third Item"
+        }
+    }
 }
 ```
 
-By running `lua5.4 Project.lua` you will have a page built on `www` with the name "index.html" where the text `Hello world` will appear 7 times with a purple background and white lettering
+3. Run `lua5.4 Project.lua` you will have a page built on `www` with the name containing:
 
-# Resources
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <style>body {font-family: sans-serif;}</style>
+    <title>Example</title>
+</head>
+<body>
+    <h1>Hello, Lua Framework!</h1>
+    <p>This is a paragraph generated using Lua.</p>
+    <img src="image.jpg" alt="Sample Image" />
+    <ul>
+        <li>First Item</li>
+        <li>Second Item</li>
+        <li>Third Item</li>
+    </ul>
+</body>
+</html>
 
-Cleaner syntax alone is not enough, `Lua WPP` brings other key features ([see documentation for more details](DOCUMENTATION.md)):
-
-### Zero dependencies
-
-Having no dependencies, any supported standard Lua interpreter is capable of making `Lua WPP` work
-
-### Minification
-
-Generates minified HTML code reduces the size of the final project
-
-### Event code autoseparation
-
-Separating code from event properties (`onclick` for example) makes maintenance easier (if needed) on rendered pages
-
-### Magic Operators
-
-##### Repetition
-
-```moon
-p 'This text will appear 5x' * 5
 ```
 
-##### Interleaving
+# Extending Tags
 
-```moon
-hello {
-   li ^ {'Item 1','Item 2','Item 3','Item 4'}
+```lua
+local customDiv = div:extends {
+    class = "custom-div",
+    childrens = {
+        span "This is inside a custom div"
+    }
+}
+
+html {
+    body {
+        customDiv "Custom content"
+    }
 }
 ```
 
-### Interaction with 2D tables
+Will render:
 
-Automatic translate 2D tables into HTML tables:
+```html
+<html>
+    <head></head>
+    <body>
+        <div class="custom-div">
+        <span>This is inside a custom div</span>
+        Custom content
+    </div>
+    </body>
+</html>
+```
 
-```moon
+# Pro tips:
+
+- You can simplify use of `ul`, `ol` and `select`:
+
+```lua
+ul {
+  "Item A",
+  "Item B",
+  "Item C",
+}
+
+ol {
+  "Item A",
+  "Item B",
+  "Item C",
+}
+
+select {
+  "Item A",
+  "Item B",
+  "Item C",
+}
+```
+
+Rendered:
+
+```html
+<ul> {
+  <li>Item A</li>
+  <li>Item B</li>
+  <li>Item C</li>
+</ul>
+
+<ol> {
+  <li>Item A</li>
+  <li>Item B</li>
+  <li>Item C</li>
+</ol>
+
+<select> {
+  <option value="Item A">Item A</option>
+  <option value="Item B">Item B</option>
+  <option value="Item C">Item C</option>
+</select>
+```
+
+- `select` has a second way:
+
+```lua
+select {
+  {"Item A","X"},
+  {"Item B","Y"},
+  {"Item C","Z"},
+}
+```
+
+Rendered:
+
+```html
+<select> {
+  <option value="X">Item A</option>
+  <option value="Y">Item B</option>
+  <option value="Z">Item C</option>
+</select>
+```
+
+- You can use Lua syntax to declare `table` elements:
+
+```lua
 table {
    {'A1', 'B1', 'C1'},
    {'A2', 'B2', 'C2'},
@@ -138,79 +223,31 @@ table {
 }
 ```
 
+Rendered:
 
-### Reusable components
+```html
 
-One of the most powerful features of `Lua WPP` allows you to create components:e:
-
-```moon
-card = div:extends {
-   -- We can add properties
-   style = 'box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2); max-width:320px;',
-   -- And also childrens
-   childrens = {
-     -- In first field is the elements before in use childrens
-     first = {
-        {
-           -- Define the tag and optional properties and childrens
-           element = img {
-              style="width:100%"
-           },
-           -- We can bind the properties 
-           bindings = {
-              ['src'] = 'picture',
-           }
-        },
-        {
-           element = div:extends {
-              style='padding: 2px 16px;',
-              childrens = {
-                 first = {
-                    {
-                       element = h4,
-                       bindings = {
-                          [1] = 'title'
-                       }
-                    },
-                    {
-                       element = p,
-                       bindings = {
-                          [1] = 'description'
-                       }
-                    },
-                 }
-              }
-           },
-           bindings = {
-              ['title'] = 'title',
-              ['description'] = 'description',
-           }
-        },
-     }
-   }
-}
+<table>
+    <tr>
+        <td>A1</td>
+        <td>B1</td>
+        <td>C1</td>
+    </tr>
+    <tr>
+        <td>A2</td>
+        <td>B2</td>
+        <td>C2</td>
+    </tr>
+    <tr>
+        <td>A3</td>
+        <td>B3</td>
+        <td>C3</td>
+    </tr>
+</table>
 ```
 
-Using:
+# License
+This project is licensed under the MIT License.
 
-```lua
-html {
-   head {
-     title 'Demo'
-   },
-   body {
-     card {
-       picture = "https://www.w3schools.com/howto/img_avatar.png",
-       title="John Doe",
-       description = "Architect & Engineer"
-     },
-     card {
-       picture = "https://www.w3schools.com/howto/img_avatar2.png",
-       title="Jane Doe",
-       description = "Interior Designer"
-     },
-   }
-}
-```
-
-In addition, it is enough to change the component once for all to be changed, code reuse in HTML!
+# Contributing
+Feel free to submit issues or contribute to the project by creating pull requests.
