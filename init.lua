@@ -77,7 +77,7 @@ local function setupNewEnv(page)
 
     dofile(lua4webapps.."/LuaTML.lua")
     for _, name in ipairs(Extensions or {}) do
-        require(lua4webapps..".extensions."..name)
+        dofile(lua4webapps.."/extensions/"..name..".lua")
         if _ENV.RegisterPlugin and RegisteredPlugins[name] == nil then
             _ENV.RegisterPlugin(ExtensionPages)
             RegisteredPlugins[name] = true
@@ -107,7 +107,6 @@ end
 local function generateExtensionPages()
     for fileName, content in pairs(ExtensionPages) do
         mkdir(Pages.output.."/"..fileName)
-        cleanENV.print(Pages.output.."/"..fileName,nil)
         local file = cleanENV.io.open(Pages.output.."/"..fileName,"w")
         if file then
             file:write(tostring(content or ""))
