@@ -3,74 +3,74 @@ function icons(sizes)
    local links = ""
    for size, uri in pairs(sizes) do
      for _, rel in ipairs {"icon","apple-touch-icon"} do
-       links = links..tostring(link {rel=rel,type="image/png",sizes=(size.."x"..size),href=uri})
+       links = links..'<link rel=rel type="image/png" sizes='..(size.."x"..size)..' href="'..uri..'"/>\n'
      end
    end
    return links
  end
 
-local link = link
-local metatable = getmetatable(link)
-local link_tostring = metatable.__tostring
- 
-function metatable.__tostring(self)
-   local has_href = false
-   for index, value in pairs(self) do
-      for property, value in pairs(type(value) == "table" and value or {}) do
-         has_href = tostring(property):lower() == "href"
-      end
-   end 
-   return has_href and link_tostring(self) or ""
+local base = _ENV[{}]
+local metatable = getmetatable(base)
+local metatable__tostring = metatable.__tostring
+local defaultValues = {
+   manifest = "manifest.json",
+   statusbar = "default",
+}
+function metatable:__tostring()
+   if rawget(self,"__lua4webapps_tagName") == "meta" then
+      local name = rawget(self,"__lua4webapps_properties").name
+      local content = rawget(self,"__lua4webapps_properties").content
+      rawget(self,"__lua4webapps_properties").content = content or defaultValues[name]
+      return rawget(self,"__lua4webapps_properties").content and metatable__tostring(self) or ""
+   end
+   local href = rawget(self,"__lua4webapps_properties").href
+   rawget(self,"__lua4webapps_properties").href = href or "manifest.json"
+   return metatable__tostring(self)
  end
 
-local meta = meta
-local metatable = getmetatable(meta)
-local meta_tostring = metatable.__tostring
+local function metatag(d)
+   local meta = _ENV['meta']
+   return setmetatable(meta,metatable)(d)
+end
 
-function metatable.__tostring(self)
-   local has_content = false
-   for index, value in pairs(self) do
-      for property, value in pairs(type(value) == "table" and value or {}) do
-         has_content = tostring(property):lower() == "content"
-      end
-   end
-  return has_content and meta_tostring(self) or ""
+local function linktag(d)
+   local meta = _ENV['link']
+   return setmetatable(meta,metatable)(d)
 end
 
 head = head:extends {
-    childrens = {
-      last = {
-         {
-            element = meta {
-              name="mobile-web-app-capable",
-              content="yes"
-            }
+   childrens = {
+     last = {
+         metatag {
+            name="mobile-web-app-capable",
+            content="yes"
          },
-         {
-            element = meta {
-              name="theme-color",
-            },
-            bindings = {
-               ['content'] = 'theme_color',
-            }
+
+        {
+           element = metatag {
+             name="theme-color"
+           },
+           bindings = {
+              ['content'] = 'theme_color',
+           }
+        },
+
+        {
+           element = metatag {
+              name="apple-mobile-web-app-status-bar-style"
+           },
+           bindings = {
+              ['content'] = 'statusbar',
+           }
+        },
+        {
+         element = linktag {
+            name="manifest"
          },
-         {
-            element = meta {
-              name="apple-mobile-web-app-status-bar-style",
-            },
-            bindings = {
-               ['content'] = 'statusbar',
-            }
-         },
-         {
-            element = link {
-              name="manifest",
-              href="manifest.json"
-            },
-            bindings = {
-               ['href'] = 'manifest',
-            }
-         },
-      }
-    }
- }
+         bindings = {
+            ['href'] = 'manifest',
+         }
+      },
+     }
+   }
+}
