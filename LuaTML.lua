@@ -62,16 +62,21 @@ local function processChildren(element,properties)
       -- We get a children of extended elements
       local bindings = element.bindings
       local elementWrapped = element.element
+      local require
 
       for childrenProperty, parentProperty in pairs(bindings) do
         if type(childrenProperty) ~= "number"  then
-          rawget(elementWrapped,"__lua4webapps_properties")[childrenProperty] = tostring(properties[parentProperty])
+          if properties[parentProperty] ~= nil then
+            rawget(elementWrapped,"__lua4webapps_properties")[childrenProperty] = tostring(properties[parentProperty])
+          end
         else
           local childrens = rawget(elementWrapped,"__lua4webapps_childrens")
           for i = 1, childrenProperty, 1 do
             childrens[i] =childrens[i] or ""
           end
-          childrens[childrenProperty] = tostring(properties[parentProperty])
+          if properties[parentProperty] ~= nil then
+            childrens[childrenProperty] = tostring(properties[parentProperty])
+          end
         end
       end
       return elementWrapped
@@ -159,13 +164,21 @@ local elementCommonMetatableEvents = {
     ;
     __tostring =
       function (self)
-        local tagName    = rawget(self,"__lua4webapps_tagName")
+        local tagName = rawget(self,"__lua4webapps_tagName")
         local childrens,properties = destructure(self)
 
         local HTML = "<"..tagName..serializeProperties(properties)..((#childrens == 0 and selfClosableTags[tagName]) and "" or ">\n")
         HTML = HTML..serializeChildrens(childrens or {})
 
-        return HTML..((#childrens == 0 and selfClosableTags[tagName]) and "/>\n" or "</"..tagName..">\n")
+        if #childrens == 0 and selfClosableTags[tagName] then
+          return HTML:gsub(" $","").."/>\n"
+        end
+
+        if tagName == "body" then
+          return HTML..("</"..tagName..">")
+        end
+
+        return HTML..("\n</"..tagName..">\n")
       end
     ;
     __call =
@@ -193,7 +206,7 @@ local elementSpecificMetatableEvents = {
       ;
       __call =
         function (self,t)
-          __HTML__ = "<!DOCTYPE html>"..tostring(elementCommonMetatableEvents.__call(self,t))
+          __HTML__ = tostring(elementCommonMetatableEvents.__call(self,t))
           return __HTML__
         end
       ;
